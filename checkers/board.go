@@ -13,8 +13,26 @@ const (
         WHITE Color = 0
 )
 
+type Direction int
+
+const (
+        UP Direction = 1
+        DOWN Direction = -1
+)
+
+func (d Direction) Opposite() Direction {
+
+        if d == UP {
+                return DOWN
+        }
+
+        return UP
+}
+
 type Pawn struct {
-        Color Color
+        Color             Color
+        MovementDirection Direction
+        King              bool
 }
 
 type GAME_RESULT int
@@ -33,6 +51,11 @@ const (
         MIN_Y = 0
 )
 
+const (
+        TO_LEFT = -1
+        TO_RIGHT = 1
+)
+
 type Board struct {
         fields    [10][10]*Pawn
         topPlayer Color //player on top of board ( starting position closer to MAX_X, MAX_Y
@@ -46,11 +69,11 @@ func NewBoard(topColor Color) Board {
 
                 for x := 0; x <= MAX_X; x ++ {
                         if x % 2 == 0 && y % 2 == 0 {
-                                b.fields[x][y] = &Pawn{getOpponent(topColor)}
-                                b.fields[x][y + 6] = &Pawn{topColor}
+                                b.fields[x][y] = &Pawn{getOpponent(topColor), UP, false}
+                                b.fields[x][y + 6] = &Pawn{topColor, DOWN, false}
                         } else if x % 2 == 1 && y % 2 == 1 {
-                                b.fields[x][y] = &Pawn{getOpponent(topColor)}
-                                b.fields[x][y + 6] = &Pawn{topColor}
+                                b.fields[x][y] = &Pawn{getOpponent(topColor), UP, false}
+                                b.fields[x][y + 6] = &Pawn{topColor, DOWN, false}
                         }
                 }
 
@@ -104,18 +127,19 @@ func (b Board) GetValidMovesForPosition(position Position) []Moves {
                 return moves
         }
 
-        toLeft := -1
-        toRight := 1
         //top bottom multipliers (up/down is more of player perspective)
-        oneUp := 1
-        if pawn.Color == b.topPlayer {
-                oneUp = -1
+        verticalMoves := func(verticalDirection Direction) {
+                dir := int(verticalDirection)
+                moves = appendMoves(moves, b.ifPossibleRightUp(position, TO_RIGHT, dir))
+                moves = appendMoves(moves, b.ifPossibleLeftUp(position, TO_LEFT, dir))
+                moves = append(moves, b.moveOverOpponent(position, make(Moves, 0), TO_RIGHT, TO_LEFT, dir, pawn.Color)...)
         }
 
-        moves = appendMoves(moves, b.ifPossibleRightUp(position, toRight, oneUp))
-        moves = appendMoves(moves, b.ifPossibleLeftUp(position, toLeft, oneUp))
+        verticalMoves(pawn.MovementDirection)
+        if pawn.King {
+                verticalMoves(pawn.MovementDirection.Opposite())
+        }
 
-        moves = append(moves, b.moveOverOpponent(position, make(Moves, 0), toRight, toLeft, oneUp, pawn.Color)...)
         return moves
 }
 
@@ -237,7 +261,7 @@ func (b Board) GetFields() [10][10]*Pawn {
                 for y := range row {
                         pawn := b.fields[x][y]
                         if pawn != nil {
-                                copy[x][y] = &Pawn{pawn.Color}
+                                copy[x][y] = &Pawn{pawn.Color, pawn.MovementDirection, pawn.King}
                         }
                 }
         }
