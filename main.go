@@ -1,29 +1,49 @@
 package main
 
 import (
+	"flag"
+	"log"
+
 	"github.com/piotrjaromin/machinelearning/checkers"
-	"fmt"
 )
 
 func main() {
 
-	board := checkers.NewBoard(checkers.BLACK)
+	mode := flag.String("mode", "preview", "determines mode of teach algorithm {teach|preview}")
+	drawerName := flag.String("drawer", "donothing", "decides how board will be drawn {opengl|asci|donothing}")
+	moveDelay := flag.Int("moveDelay", 400, "in preview mode enabled delay between moves [ms]")
+	maxGamesPlayed := flag.Int("maxGames", 1000, "amount of games that should be played during teaching")
+	learningRate := flag.Float64("learningRate", 0.0001, "learning rate speed")
 
-	fmt.Printf(board.String())
+	flag.Parse()
 
-	fmt.Print("\n===============\n")
+	log.Printf("selected mode is %s, drawerName is %s, moveDelay is %d", *mode, *drawerName, *moveDelay)
 
-	for i := 0; i < 10; i++ {
-		p := board.GetFields()[i][0]
-		if p != nil {
-			switch p.Color {
-			case checkers.BLACK:
-				fmt.Printf(" B ")
-			case checkers.WHITE:
-				fmt.Printf(" W ")
-			}
-		} else {
-			fmt.Printf(" _ ")
-		}
+	drawer := getDrawer(*drawerName, *moveDelay)
+
+	switch *mode {
+	case "preview":
+		checkers.TeachWithPreview(drawer, *learningRate)
+	case "teach":
+		endGameAfter := checkers.CreateEndAfterGamesPlayed(*maxGamesPlayed)
+		stats := checkers.Teach(endGameAfter, drawer, *learningRate)
+		log.Println(stats.String())
+	default:
+		flag.PrintDefaults()
+	}
+}
+
+
+func getDrawer(name string, delay int) checkers.Draw {
+
+	switch name {
+	case "asci":
+		var drawer checkers.AsciDraw
+		return drawer
+	case "opengl":
+		return checkers.CreateOpenGlDraw(300, 300, 10,10, delay)
+	default:
+		var emptyDrawer checkers.DoNothingDraw
+		return emptyDrawer
 	}
 }

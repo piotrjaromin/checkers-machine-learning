@@ -1,335 +1,423 @@
 package checkers
 
 import (
-        "log"
-        "fmt"
-        "reflect"
+	"fmt"
+	"io/ioutil"
+	"log"
+	"math"
+	"os"
+	"reflect"
 )
 
-type Color int
+const DRAW_MOVES = 20
+
+type GAME_RESULT string
+
+var EnableCloneLogging = false
 
 const (
-        BLACK Color = 1
-        WHITE Color = 0
-)
-
-type Direction int
-
-const (
-        UP Direction = 1
-        DOWN Direction = -1
-)
-
-func (d Direction) Opposite() Direction {
-
-        if d == UP {
-                return DOWN
-        }
-
-        return UP
-}
-
-type Pawn struct {
-        Color             Color
-        MovementDirection Direction
-        King              bool
-}
-
-type GAME_RESULT int
-
-const (
-        DRAW GAME_RESULT = 0
-        WIN_BLACK GAME_RESULT = 1
-        WIN_WHITE GAME_RESULT = 2
-        UNFINISHED GAME_RESULT = 3
+	DRAW       GAME_RESULT = "Draw"
+	WIN_BLACK  GAME_RESULT = "WinBlack"
+	WIN_WHITE  GAME_RESULT = "WinWhite"
+	UNFINISHED GAME_RESULT = "Unfinised"
 )
 
 const (
-        MAX_X = 9
-        MAX_Y = 9
-        MIN_X = 0
-        MIN_Y = 0
+	MAX_X = 9
+	MAX_Y = 9
+	MIN_X = 0
+	MIN_Y = 0
 )
 
 const (
-        TO_LEFT = -1
-        TO_RIGHT = 1
+	TO_LEFT  = -1
+	TO_RIGHT = 1
 )
 
 type Board struct {
-        fields    [10][10]*Pawn
-        topPlayer Color //player on top of board ( starting position closer to MAX_X, MAX_Y
+	fields              [10][10]*Pawn
+	topPlayer           Color //player on top of board ( starting position closer to MAX_X, MAX_Y
+	roundsAfterLastKill int
+	boardLogger         *log.Logger
+	cloneCount          int
 }
 
-func NewBoard(topColor Color) Board {
+func NewBoard(topColor Color, logger *log.Logger) Board {
 
-        b := Board{topPlayer: topColor}
+	b := Board{topPlayer: topColor, boardLogger: logger}
 
-        for y := 0; y < 4; y++ {
+	for y := 0; y < 4; y++ {
 
-                for x := 0; x <= MAX_X; x ++ {
-                        if x % 2 == 0 && y % 2 == 0 {
-                                b.fields[x][y] = &Pawn{getOpponent(topColor), UP, false}
-                                b.fields[x][y + 6] = &Pawn{topColor, DOWN, false}
-                        } else if x % 2 == 1 && y % 2 == 1 {
-                                b.fields[x][y] = &Pawn{getOpponent(topColor), UP, false}
-                                b.fields[x][y + 6] = &Pawn{topColor, DOWN, false}
-                        }
-                }
+		for x := 0; x <= MAX_X; x++ {
+			if x%2 == 0 && y%2 == 0 {
+				b.fields[x][y] = &Pawn{getOpponent(topColor), UP, false}
+				b.fields[x][y+6] = &Pawn{topColor, DOWN, false}
+			} else if x%2 == 1 && y%2 == 1 {
+				b.fields[x][y] = &Pawn{getOpponent(topColor), UP, false}
+				b.fields[x][y+6] = &Pawn{topColor, DOWN, false}
+			}
+		}
+	}
 
-        }
-
-        return b
+	return b
 }
 
-func (b*Board) Move(moves Moves) bool {
+func (b *Board) Move(moves Moves) bool {
+	if b.isInvalidMoves(moves) {
+		b.boardLogger.Println("invalid move aborting.")
+		return false
+	}
 
-        if b.isInvalidMoves(moves) {
-                return false
-        }
+	if len(moves) == 0 {
+		b.boardLogger.Println("No moves to make.")
+		return false
+	}
 
-        for _, move := range moves {
+	b.boardLogger.Printf("moves amount %d\n", len(moves))
 
-                b.fields[move.To.X][move.To.Y] = b.fields[move.From.X][move.From.Y]
-                b.fields[move.From.X][move.From.Y] = nil
-        }
+	for _, move := range moves {
 
-        return true
+		pawn := b.fields[move.From.X][move.From.Y]
+		b.boardLogger.Printf("Move %s > %s", pawn.Color.String(), move.String())
+
+		b.fields[move.To.X][move.To.Y] = pawn
+		b.fields[move.From.X][move.From.Y] = nil
+
+		isKillMove := func(move Move) bool {
+			return math.Abs(float64(move.From.Y-move.To.Y)) > 1
+		}
+
+		if isKillMove(move) {
+			//calcualte diff should be either -1 or +1
+			diffY := int(math.Ceil(float64((move.To.Y - move.From.Y) / 2)))
+			diffX := int(math.Ceil(float64((move.To.X - move.From.X) / 2)))
+
+			destX := move.From.X + diffX
+			destY := move.From.Y + diffY
+
+			//removes pawn
+			pawnToKill := b.fields[destX][destY]
+			b.boardLogger.Printf("killing > %s at (%d, %d)\n", pawnToKill.Color.String(), destX, destY)
+			b.fields[destX][destY] = nil
+
+			//reset count after kill
+			b.roundsAfterLastKill = 0
+		}
+	}
+
+	b.roundsAfterLastKill++
+
+	lastMove := moves[len(moves)-1]
+	pawn := b.getPawn(Position{lastMove.To.X, lastMove.To.Y})
+	if b.canBeKingReaching(lastMove.To) {
+		b.boardLogger.Printf("Turning pawn %+v into king because it reached %+v", pawn, lastMove)
+		pawn.King = true
+	}
+
+	return true
+}
+
+func (b Board) canBeKingReaching(position Position) bool {
+
+	return position.Y == MAX_Y || position.Y == MIN_Y
 }
 
 func (b Board) isInvalidMoves(moves Moves) bool {
 
-        validMoves := b.GetValidMovesForPosition(moves[0].From)
+	//TODO can the be zero?
+	if len(moves) == 0 {
+		return false
+	}
 
-        for _, validMove := range validMoves {
-                if reflect.DeepEqual(validMove, moves) {
-                        return false
-                }
-        }
-        return true
+	validMoves := b.GetValidMovesForPosition(moves[0].From)
+
+	for _, validMove := range validMoves {
+		if reflect.DeepEqual(validMove, moves) {
+			return false
+		}
+	}
+
+	return true
 }
 
 func (b Board) getPawn(p Position) *Pawn {
-        return b.fields[p.X][p.Y]
+
+	if b.isOnBoard(p) {
+		return b.fields[p.X][p.Y]
+	}
+	return nil
 }
 
+//GetValidMovesForPosition returns list of valid moves for pawn which is posititioned at provided Position
+//if there is now pawn at given position return empty array
 func (b Board) GetValidMovesForPosition(position Position) []Moves {
-        moves := []Moves{}
+	moves := []Moves{}
 
-        if ! b.isOnBoard(position) {
-                return moves
-        }
+	if !b.isOnBoard(position) {
+		return moves
+	}
 
-        pawn := b.getPawn(position)
+	pawn := b.getPawn(position)
 
-        if pawn == nil {
-                log.Println("[GetValidMovesForPosition] There is no pawn at this position")
-                return moves
-        }
+	if pawn == nil {
+		b.boardLogger.Println("[GetValidMovesForPosition] There is no pawn at this position")
+		return moves
+	}
 
-        //top bottom multipliers (up/down is more of player perspective)
-        verticalMoves := func(verticalDirection Direction) {
-                dir := int(verticalDirection)
-                moves = appendMoves(moves, b.ifPossibleRightUp(position, TO_RIGHT, dir))
-                moves = appendMoves(moves, b.ifPossibleLeftUp(position, TO_LEFT, dir))
-                moves = append(moves, b.moveOverOpponent(position, make(Moves, 0), TO_RIGHT, TO_LEFT, dir, pawn.Color)...)
-        }
+	//top bottom multipliers (up/down is more of player perspective)
+	verticalMoves := func(verticalDirection Direction) {
+		dir := int(verticalDirection)
+		moves = appendMoves(moves, b.ifPossibleUpToSide(position, TO_RIGHT, dir))
+		moves = appendMoves(moves, b.ifPossibleUpToSide(position, TO_LEFT, dir))
+		moves = append(moves, b.moveOverOpponent(position, make(Moves, 0), TO_RIGHT, TO_LEFT, dir, pawn.Color)...)
+	}
 
-        verticalMoves(pawn.MovementDirection)
-        if pawn.King {
-                verticalMoves(pawn.MovementDirection.Opposite())
-        }
+	verticalMoves(pawn.MovementDirection)
+	if pawn.King {
+		verticalMoves(pawn.MovementDirection.Opposite())
+	}
 
-        return moves
+	return moves
 }
 
-func (b Board) ifPossibleRightUp(p Position, toRight int, oneUp int) Moves {
-        moves := Moves{}
+func (b Board) ifPossibleUpToSide(p Position, toSide int, oneUp int) Moves {
+	moves := Moves{}
 
-        if ! b.canMove(p, toRight, oneUp) {
-                return moves
-        }
+	if !b.canMove(p, toSide, oneUp) {
+		return moves
+	}
 
-        getUpRight := func(p Position) *Pawn {
-                return b.fields[p.X + 1][ p.Y + oneUp]
-        }
+	getUpToSide := func(p Position) *Pawn {
+		return b.fields[p.X+toSide][p.Y+oneUp]
+	}
 
-        if getUpRight(p) == nil {
-                moves = append(moves, Move{From: p, To: p.Add(toRight, oneUp)})
-        }
-        return moves
-}
-
-func (b Board) ifPossibleLeftUp(p Position, toLeft int, oneUp int) Moves {
-        moves := Moves{}
-
-        if ! b.canMove(p, toLeft, oneUp) {
-                return moves
-        }
-
-        getUpLeft := func(p Position) *Pawn {
-                return b.fields[p.X - 1][p.Y + oneUp]
-        }
-
-        if getUpLeft(p) == nil {
-                moves = append(moves, Move{From: p, To: p.Add(toLeft, oneUp)})
-        }
-        return moves
+	if getUpToSide(p) == nil {
+		moves = append(moves, Move{From: p, To: p.Add(toSide, oneUp)})
+	}
+	return moves
 }
 
 func (b Board) moveOverOpponent(position Position, currentMoves Moves, toRight int, toLeft int, oneUp int, color Color) []Moves {
-        totalMoves := make([]Moves, 0, 2)
-        rightUp := b.getUpRightPawn(position, oneUp)
+	totalMoves := make([]Moves, 0, 2)
+	rightUp := b.getUpRightPawn(position, oneUp)
 
-        if rightUp != nil && rightUp.Color == getOpponent(color) {
+	if rightUp != nil && rightUp.Color == getOpponent(color) {
 
-                //this is position of opponent
-                newRightUp := position.Add(toRight, oneUp)
-                //so this will add jumped over position
-                jumpOver := b.ifPossibleRightUp(newRightUp, toRight, oneUp)
-                //we can jump over
-                if len(jumpOver) > 0 {
-                        // add as partial move
-                        currentMoves := append(currentMoves, Move{position, jumpOver[0].To})
+		//this is position of opponent
+		newRightUp := position.Add(toRight, oneUp)
+		//so this will add jumped over position
+		jumpOver := b.ifPossibleUpToSide(newRightUp, toRight, oneUp)
+		//we can jump over
+		if len(jumpOver) > 0 {
+			// add as partial move
+			currentMoves := append(currentMoves, Move{position, jumpOver[0].To})
 
-                        totalMoves = append(totalMoves, currentMoves.clone())
+			totalMoves = append(totalMoves, currentMoves.clone())
 
-                        //continue(chain jumps)
-                        totalMoves = append(totalMoves, b.moveOverOpponent(jumpOver[0].To, currentMoves, toRight, toLeft, oneUp, color)...)
-                }
-        }
+			//continue(chain jumps)
+			totalMoves = append(totalMoves, b.moveOverOpponent(jumpOver[0].To, currentMoves, toRight, toLeft, oneUp, color)...)
+		}
+	}
 
-        leftUp := b.getUpLeftPawn(position, oneUp)
-        if leftUp != nil && leftUp.Color == getOpponent(color) {
-                newLeftUp := position.Add(toLeft, oneUp)
+	leftUp := b.getUpLeftPawn(position, oneUp)
+	if leftUp != nil && leftUp.Color == getOpponent(color) {
+		newLeftUp := position.Add(toLeft, oneUp)
 
-                jumpOver := b.ifPossibleLeftUp(newLeftUp, toLeft, oneUp)
+		jumpOver := b.ifPossibleUpToSide(newLeftUp, toLeft, oneUp)
 
-                if len(jumpOver) > 0 {
-                        currentMoves := append(currentMoves, Move{position, jumpOver[0].To})
+		if len(jumpOver) > 0 {
+			currentMoves := append(currentMoves, Move{position, jumpOver[0].To})
 
-                        totalMoves = append(totalMoves, currentMoves.clone())
-                        totalMoves = append(totalMoves, b.moveOverOpponent(jumpOver[0].To, currentMoves, toRight, toLeft, oneUp, color)...)
-                }
+			totalMoves = append(totalMoves, currentMoves.clone())
+			totalMoves = append(totalMoves, b.moveOverOpponent(jumpOver[0].To, currentMoves, toRight, toLeft, oneUp, color)...)
+		}
 
-        }
+	}
 
-        return totalMoves
+	return totalMoves
 }
 
 func (b Board) canMove(position Position, direction int, oneUp int) bool {
 
-        return b.isOnBoard(position.Add(direction, oneUp))
+	return b.isOnBoard(position.Add(direction, oneUp))
 }
 
 func (b Board) isOnBoard(position Position) bool {
 
-        if (position.Y > MAX_Y) || (position.Y < MIN_Y) {
-                return false
-        }
+	if (position.Y > MAX_Y) || (position.Y < MIN_Y) {
+		return false
+	}
 
-        if (position.X > MAX_X) || (position.X < MIN_X) {
-                return false
-        }
+	if (position.X > MAX_X) || (position.X < MIN_X) {
+		return false
+	}
 
-        return true
+	return true
 }
 
 func (p Position) Add(x int, y int) Position {
-        return Position{
-                p.X + x,
-                p.Y + y,
-        }
+	return Position{
+		p.X + x,
+		p.Y + y,
+	}
 }
 
 func (b Board) getUpRightPawn(p Position, oneUp int) *Pawn {
 
-        newPos := p.Add(1, oneUp)
-        if ! b.isOnBoard(newPos) {
-                return nil
-        }
+	newPos := p.Add(1, oneUp)
+	if !b.isOnBoard(newPos) {
+		return nil
+	}
 
-        return b.getPawn(newPos)
+	return b.getPawn(newPos)
 }
 
 func (b Board) GetFields() [10][10]*Pawn {
 
-        copy := [10][10]*Pawn{}
+	copy := [10][10]*Pawn{}
 
-        for x, row := range b.fields {
+	b.Iterate(func(x, y int, pawn *Pawn) {
+		if pawn != nil {
+			copy[x][y] = &Pawn{pawn.Color, pawn.MovementDirection, pawn.King}
+		}
+	})
 
-                for y := range row {
-                        pawn := b.fields[x][y]
-                        if pawn != nil {
-                                copy[x][y] = &Pawn{pawn.Color, pawn.MovementDirection, pawn.King}
-                        }
-                }
-        }
-        return copy
+	return copy
 }
 
 func (b Board) getUpLeftPawn(p Position, oneUp int) *Pawn {
 
-        newPos := p.Add(-1, oneUp)
-        if ! b.isOnBoard(newPos) {
-                return nil
-        }
+	newPos := p.Add(-1, oneUp)
+	if !b.isOnBoard(newPos) {
+		return nil
+	}
 
-        return b.getPawn(newPos)
+	return b.getPawn(newPos)
 }
 
 func (b Board) GameResult() GAME_RESULT {
 
-        blackLeft := false
-        whiteLeft := false
+	blackLeft := false
+	whiteLeft := false
 
-        for x, row := range b.fields {
+	b.Iterate(func(x, y int, pawn *Pawn) {
 
-                for y := range row {
-                        pawn := b.fields[x][y]
-                        if pawn != nil {
-                                switch pawn.Color {
-                                case BLACK:
-                                        blackLeft = true
-                                case WHITE:
-                                        whiteLeft = true
-                                }
-                        }
-                }
-        }
+		if pawn != nil {
+			switch pawn.Color {
+			case BLACK:
+				blackLeft = true
+			case WHITE:
+				whiteLeft = true
+			}
+		}
+	})
 
-        if whiteLeft && !blackLeft {
-                return WIN_WHITE
-        }
+	if whiteLeft && !blackLeft {
+		return WIN_WHITE
+	}
 
-        if !whiteLeft && blackLeft {
-                return WIN_BLACK
-        }
+	if !whiteLeft && blackLeft {
+		return WIN_BLACK
+	}
 
-        return UNFINISHED
+	if b.roundsAfterLastKill > DRAW_MOVES {
+		return DRAW
+	}
+
+	if len(b.GetAllMovesFor(WHITE)) == 0 {
+		return WIN_WHITE
+	}
+
+	if len(b.GetAllMovesFor(BLACK)) == 0 {
+		return WIN_BLACK
+	}
+
+	return UNFINISHED
+}
+
+func (b Board) Iterate(cb func(x, y int, p *Pawn)) {
+
+	for x, row := range b.fields {
+
+		for y, pawn := range row {
+
+			if pawn != nil {
+
+				cb(x, y, &Pawn{pawn.Color, pawn.MovementDirection, pawn.King})
+			} else {
+
+				cb(x, y, nil)
+			}
+		}
+	}
+}
+
+func (b Board) CloneWithLogger(logger *log.Logger) Board {
+	cloned := b.Clone()
+	cloned.boardLogger = logger
+	return cloned
+}
+
+//Clone current board and creates new one with the same state
+func (b *Board) Clone() Board {
+
+	ioOut := ioutil.Discard
+	if EnableCloneLogging {
+		ioOut = os.Stdout
+	}
+
+	cloned := Board{
+		topPlayer:   b.topPlayer,
+		boardLogger: log.New(ioOut, fmt.Sprintf("[CLONED-%d]", b.cloneCount), log.LstdFlags),
+	}
+
+	b.Iterate(func(x, y int, p *Pawn) {
+		if p != nil {
+			cloned.fields[x][y] = &Pawn{p.Color, p.MovementDirection, p.King}
+		}
+	})
+
+	b.cloneCount++
+	return cloned
+}
+
+//GetAllMovesFor return all possible moves for player with given color
+func (b Board) GetAllMovesFor(color Color) []Moves {
+
+	moves := make([]Moves, 0, 0)
+
+	b.Iterate(func(x, y int, p *Pawn) {
+
+		if p != nil && p.Color == color {
+			moves = append(moves, b.GetValidMovesForPosition(Position{x, y})...)
+		}
+	})
+
+	return moves
 }
 
 func (b Board) String() string {
 
-        str := ""
-        for x, row := range b.fields {
+	str := ""
+	currentX := 0
+	b.Iterate(func(x int, y int, pawn *Pawn) {
 
-                for y, pawn := range row {
+		if currentX != x {
+			str += "\n"
+			currentX = x
+		}
 
-                        if pawn != nil {
-                                switch pawn.Color {
-                                case BLACK:
-                                        str += fmt.Sprintf(" B(%d,%d) ", x, y)
-                                case WHITE:
-                                        str += fmt.Sprintf(" W(%d,%d) ", x, y)
-                                }
-                        } else {
-                                str += "   _    "
-                        }
-                }
+		if pawn != nil {
+			switch pawn.Color {
+			case BLACK:
+				str += fmt.Sprintf(" B(%d,%d) ", x, y)
+			case WHITE:
+				str += fmt.Sprintf(" W(%d,%d) ", x, y)
+			}
+		} else {
+			str += "   _    "
+		}
+	})
 
-                str += "\n"
-        }
-
-        return str
+	return str
 }

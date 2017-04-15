@@ -1,106 +1,116 @@
 package checkers
 
 import (
-        "testing"
-        . "github.com/smartystreets/goconvey/convey"
-        "github.com/smartystreets/assertions/should"
+	"fmt"
+	"log"
+	"os"
+	"testing"
+
+	"github.com/smartystreets/assertions/should"
+	. "github.com/smartystreets/goconvey/convey"
 )
 
 func TestBoard(t *testing.T) {
 
-        Convey("Board should", t, func() {
+	logger := log.New(os.Stdout, fmt.Sprintf("[%s]", "[MAIN]"), log.LstdFlags)
 
-                Convey("for new board with black at top place white pawn at x=5, y=3", func() {
-                        b := NewBoard(BLACK)
+	Convey("Board should", t, func() {
 
-                        p := Position{5, 3}
-                        pawn := b.getPawn(p)
+		Convey("for new board with black at top place white pawn at x=5, y=3", func() {
+			b := NewBoard(BLACK, logger)
 
-                        So(pawn, ShouldNotBeNil)
-                        So(pawn.Color, ShouldEqual, WHITE)
-                })
+			p := Position{5, 3}
+			pawn := b.getPawn(p)
 
-                Convey("Allow two moves when pawn has no obstacles", func() {
+			So(pawn, ShouldNotBeNil)
+			So(pawn.Color, ShouldEqual, WHITE)
+		})
 
-                        b := NewBoard(BLACK)
-                        from := Position{5, 3}
+		Convey("Allow two moves when pawn has no obstacles", func() {
 
-                        moves := b.GetValidMovesForPosition(from)
+			b := NewBoard(BLACK, logger)
+			from := Position{5, 3}
 
-                        So(moves, ShouldHaveLength, 2)
-                        So(moves, should.Resemble, []Moves{
-                                {{from, Position{6, 4}}},
-                                {{from, Position{4, 4}}},
-                        })
-                })
+			moves := b.GetValidMovesForPosition(from)
 
-                Convey("Allow one move when pawn is on right side of board", func() {
+			So(moves, ShouldHaveLength, 2)
+			So(moves, should.Resemble, []Moves{
+				{{from, Position{6, 4}}},
+				{{from, Position{4, 4}}},
+			})
+		})
 
-                        b := NewBoard(BLACK)
-                        from := Position{9, 3}
+		Convey("Allow one move when pawn is on right side of board", func() {
 
-                        moves := b.GetValidMovesForPosition(from)
+			b := NewBoard(BLACK, logger)
+			from := Position{9, 3}
 
-                        So(moves, ShouldHaveLength, 1)
-                        So(moves, should.Resemble, []Moves{
-                                {{from, Position{8, 4}}},
-                        })
-                })
+			moves := b.GetValidMovesForPosition(from)
 
-                Convey("Allow one move when pawn is on left side of board", func() {
+			So(moves, ShouldHaveLength, 1)
+			So(moves, should.Resemble, []Moves{
+				{{from, Position{8, 4}}},
+			})
+		})
 
-                        b := NewBoard(WHITE)
-                        from := Position{9, 3}
+		Convey("Allow one move when pawn is on left side of board", func() {
 
-                        moves := b.GetValidMovesForPosition(from)
+			b := NewBoard(WHITE, logger)
+			from := Position{9, 3}
 
-                        So(moves, ShouldHaveLength, 1)
-                        So(moves, should.Resemble, []Moves{
-                                {{from, Position{8, 4}}},
-                        })
-                })
+			moves := b.GetValidMovesForPosition(from)
 
-                Convey("Allow jump over one enemy", func() {
+			So(moves, ShouldHaveLength, 1)
+			So(moves, should.Resemble, []Moves{
+				{{from, Position{8, 4}}},
+			})
+		})
 
-                        b := NewBoard(BLACK)
+		Convey("Allow jump over one enemy and remove it", func() {
 
-                        //place back for white to be able to jump
-                        So(b.Move(Moves{{Position{1, 3}, Position{2, 4}}}), should.BeTrue)
-                        So(b.Move(Moves{{Position{2, 4}, Position{3, 5}}}), should.BeTrue)
+			b := NewBoard(BLACK, logger)
 
-                        from := Position{4, 6}
-                        moves := b.GetValidMovesForPosition(from)
+			//place back for white to be able to jump
+			So(b.Move(Moves{{Position{1, 3}, Position{2, 4}}}), should.BeTrue)
+			So(b.Move(Moves{{Position{2, 4}, Position{3, 5}}}), should.BeTrue)
 
-                        So(moves, ShouldHaveLength, 2)
-                        So(moves, should.Resemble, []Moves{
-                                {{from, Position{5, 5}}}, //free place (normal move)
-                                {{from, Position{2, 4}}}, //jump to position
-                        })
-                })
+			from := Position{4, 6}
+			moves := b.GetValidMovesForPosition(from)
 
-                Convey("Allow chain jump over two enemies", func() {
+			So(moves, ShouldHaveLength, 2)
+			So(moves, should.Resemble, []Moves{
+				{{from, Position{5, 5}}}, //free place (normal move)
+				{{from, Position{2, 4}}}, //jump to position
+			})
 
-                        b := NewBoard(BLACK)
+			So(b.getPawn(Position{3, 6}), ShouldBeNil)
+		})
 
-                        //place back for white to be able to jump
-                        So(b.Move(Moves{{Position{1, 3}, Position{2, 4}}}), should.BeTrue)
-                        So(b.Move(Moves{{Position{2, 4}, Position{3, 5}}}), should.BeTrue)
+		Convey("Allow chain jump over two enemies  || TODO FIX ME UP I d not have chain jump", func() {
 
-                        from := Position{4, 6}
-                        moves := b.GetValidMovesForPosition(from)
+			b := NewBoard(BLACK, logger)
 
-                        So(moves, ShouldHaveLength, 2)
-                        So(moves, should.Resemble, []Moves{
-                                {{from, Position{5, 5}}}, //free place (normal move)
-                                {{from, Position{2, 4}}}, //jump to position
-                        })
-                })
+			//place back for white to be able to jump
+			So(b.Move(Moves{{Position{1, 3}, Position{2, 4}}}), should.BeTrue)
+			So(b.Move(Moves{{Position{2, 4}, Position{3, 5}}}), should.BeTrue)
 
-                Convey("Not allow invalid move", func() {
+			from := Position{4, 6}
+			moves := b.GetValidMovesForPosition(from)
 
-                        b := NewBoard(BLACK)
-                        So(b.Move(Moves{{Position{1, 3}, Position{7, 4}}}), should.BeFalse)
-                })
-        })
+			So(moves, ShouldHaveLength, 2)
+			So(moves, should.Resemble, []Moves{
+				{{from, Position{5, 5}}}, //free place (normal move)
+				{{from, Position{2, 4}}}, //jump to position
+			})
+
+			So(b.getPawn(Position{3, 6}), ShouldBeNil)
+		})
+
+		Convey("Not allow invalid move", func() {
+
+			b := NewBoard(BLACK, logger)
+			So(b.Move(Moves{{Position{1, 3}, Position{7, 4}}}), should.BeFalse)
+		})
+	})
 
 }
