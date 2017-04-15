@@ -48,29 +48,29 @@ func CreateOpenGlDraw(screenWidth, screenHeight, xFieldsAmount, yFieldsAmount in
 
 func (ogd OpenGlDraw) update(screen *ebiten.Image) error {
 
-        //ogd.drawGrid()
-        //
-        ////println(ogd.board.String())
-        //ogd.board.Iterate(func(x, y int, pawn *Pawn) {
-        //
-        //        if pawn != nil {
-        //                println("itterating pawns")
-        //                clr := black
-        //                if pawn.Color == WHITE {
-        //                        clr = red
-        //                }
-        //                ogd.drawPawn(x, y, clr, pawn.King)
-        //        }
-        //})
-        //
-        //ogd.dc.SetRGB(0, 0, 0)
-        //img := ogd.dc.Image()
-        //ogd.dc.Fill()
-        //screen.Fill(color.White)
-        //
-        //eimg, _ := ebiten.NewImageFromImage(img, ebiten.FilterNearest)
-        //
-        //screen.DrawImage(eimg, nil)
+        ogd.drawGrid()
+
+        //println(ogd.board.String())
+        ogd.board.Iterate(func(x, y int, pawn *Pawn) {
+
+                if pawn != nil {
+                        println("itterating pawns")
+                        clr := black
+                        if pawn.Color == WHITE {
+                                clr = red
+                        }
+                        ogd.drawPawn(x, y, clr, pawn.King)
+                }
+        })
+
+        ogd.dc.SetRGB(0, 0, 0)
+        img := ogd.dc.Image()
+        ogd.dc.Fill()
+        screen.Fill(color.White)
+
+        eimg, _ := ebiten.NewImageFromImage(img, ebiten.FilterNearest)
+
+        screen.DrawImage(eimg, nil)
 
         return nil
 }

@@ -88,7 +88,7 @@ func (b *Board) Move(moves Moves) bool {
 		}
 
 		if isKillMove(move) {
-			//calcualte diff should be either -1 or +1
+			//calculate diff should be either -1 or +1
 			diffY := int(math.Ceil(float64((move.To.Y - move.From.Y) / 2)))
 			diffX := int(math.Ceil(float64((move.To.X - move.From.X) / 2)))
 

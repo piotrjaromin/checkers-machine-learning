@@ -1,10 +1,9 @@
 package checkers
 
-import "log"
-import "fmt"
 import (
+        "log"
         "os"
-        "io/ioutil"
+        "fmt"
 )
 
 var logger = log.New(os.Stdout, "[Teach]", log.LstdFlags)
@@ -22,7 +21,7 @@ func CreateEndAfterGamesPlayed(maxGamesPlayed int) EndTeachingFunc {
 
 func Teach(etf EndTeachingFunc, drawer Draw, learningRate float64) Stats {
 
-        logger := log.New(ioutil.Discard, fmt.Sprintf("[%s]", "[MAIN]"), log.LstdFlags)
+        logger := log.New(os.Stdout, fmt.Sprintf("[%s]", "[MAIN]"), log.LstdFlags)
         board := NewBoard(BLACK, logger)
 
         p1 := NewMLPlayer(BLACK, RandomParams(), learningRate)
@@ -69,15 +68,16 @@ func movePlayer(b *Board, player PlayerML, opponent PlayerML) {
 
         stateBeforeMoves := calculateState(*b)
         stateValueBeforeMove := calculateStateValue(player, stateBeforeMoves, b.GameResult())
-        player.GetMoves(b.Clone())
+        playerMoves := player.GetMoves(*b)
+        b.Move(playerMoves)
 
         //simulate other player move
         tempBoard := b.Clone()
-        opponentMoves := opponent.GetMoves(tempBoard.Clone())
+        opponentMoves := opponent.GetMoves(tempBoard)
         tempBoard.Move(opponentMoves)
 
         //simulate first player response
-        firstPlayerResponseMoves := player.GetMoves(tempBoard.Clone())
+        firstPlayerResponseMoves := player.GetMoves(tempBoard)
         tempBoard.Move(firstPlayerResponseMoves)
 
         //evaluate new player state
