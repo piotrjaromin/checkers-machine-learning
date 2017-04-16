@@ -34,16 +34,22 @@ func (p PlayerMLStruct) GetMoves(b Board) Moves {
 		log.Printf("Player %s has zero moves left", p.color.String())
 	}
 
-	var highesStateValue *float64
+	var highestStateValue *float64
 	var bestMove Moves
 	for _, moves := range allMoves {
 		tempBoard := b.Clone()
 
 		if tempBoard.Move(moves) {
+			gameResultAfterMove := tempBoard.GameResult()
+			if gameResultAfterMove.isWin(p.color) {
+				bestMove = moves
+				break;
+			}
+
 			gameState := calculateState(tempBoard)
-			stateValue := calculateStateValue(PlayerML(&p), gameState, tempBoard.GameResult())
-			if highesStateValue == nil || stateValue >= *highesStateValue {
-				highesStateValue = &stateValue
+			stateValue := calculateStateValue(PlayerML(&p), gameState, gameResultAfterMove)
+			if highestStateValue == nil || stateValue >= *highestStateValue {
+				highestStateValue = &stateValue
 				bestMove = moves
 			}
 		} else {
@@ -78,7 +84,7 @@ func RandomParams() []float64 {
 
 	params := make([]float64, STATE_PARAMS, STATE_PARAMS)
 	for i := 0; i < STATE_PARAMS; i++ {
-		params[i] = rand.Float64() * 100
+		params[i] = rand.Float64() * 1
 	}
 
 	return params

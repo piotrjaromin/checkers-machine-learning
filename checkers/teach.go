@@ -4,6 +4,7 @@ import (
         "log"
         "os"
         "fmt"
+        "io/ioutil"
 )
 
 var logger = log.New(os.Stdout, "[Teach]", log.LstdFlags)
@@ -21,7 +22,7 @@ func CreateEndAfterGamesPlayed(maxGamesPlayed int) EndTeachingFunc {
 
 func Teach(etf EndTeachingFunc, drawer Draw, learningRate float64) Stats {
 
-        logger := log.New(os.Stdout, fmt.Sprintf("[%s]", "[MAIN]"), log.LstdFlags)
+        logger := log.New(ioutil.Discard, fmt.Sprintf("[%s]", "[MAIN]"), log.LstdFlags)
         board := NewBoard(BLACK, logger)
 
         p1 := NewMLPlayer(BLACK, RandomParams(), learningRate)
@@ -56,6 +57,7 @@ func PlayOneGame(b Board, p1 PlayerML, p2 PlayerML, drawer Draw) GAME_RESULT {
                 }
 
                 logger.Printf("[%d]State %s", itr, calculateState(b).String())
+                itr++
                 drawer.Draw(b)
         }
 
@@ -158,20 +160,12 @@ func calculateStateValue(player PlayerML, state GameState, gameResult GAME_RESUL
                 return 0
         }
 
-        if player.Color() == BLACK {
-                if gameResult == WIN_BLACK {
-                        return 100
-                } else if gameResult == WIN_WHITE {
-                        return -100
-                }
+        if gameResult.isWin(player.Color()) {
+                return 100
         }
 
-        if player.Color() == WHITE {
-                if gameResult == WIN_WHITE {
-                        return 100
-                } else if gameResult == WIN_BLACK {
-                        return -100
-                }
+        if gameResult.isLost(player.Color()) {
+                return -100
         }
 
         params := player.GetState()
@@ -180,5 +174,5 @@ func calculateStateValue(player PlayerML, state GameState, gameResult GAME_RESUL
                 return float64(p.AllCount) * params[startIndex] + float64(p.AttacksCount) * params[startIndex + 1] + float64(p.KingCount) * params[startIndex + 2]
         }
 
-        return calcForPlayer(1, state.Black) + calcForPlayer(4, state.Black)
+        return params[0] + calcForPlayer(1, state.White) + calcForPlayer(4, state.Black)
 }

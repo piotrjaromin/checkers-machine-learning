@@ -2,9 +2,8 @@ package main
 
 import (
 	"flag"
-	"log"
-
 	"github.com/piotrjaromin/machinelearning/checkers"
+	"log"
 )
 
 func main() {

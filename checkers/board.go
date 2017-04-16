@@ -22,6 +22,31 @@ const (
         UNFINISHED GAME_RESULT = "Unfinised"
 )
 
+func ( gr GAME_RESULT) isWin(color Color) bool {
+        if gr == WIN_BLACK && color == BLACK {
+                return true
+        }
+
+        if gr == WIN_WHITE && color == WHITE {
+                return true
+        }
+
+        return false
+}
+
+func ( gr GAME_RESULT) isLost(color Color) bool {
+        if gr == WIN_WHITE && color == BLACK {
+                return true
+        }
+
+        if gr == WIN_BLACK && color == WHITE {
+                return true
+        }
+
+        return false
+}
+
+
 const (
         MAX_X = 9
         MAX_Y = 9
