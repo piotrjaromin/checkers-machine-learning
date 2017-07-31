@@ -7,6 +7,8 @@ type Stats struct {
         BlackWins   int
         Draws       int
         GamesPlayed int
+        BlackParams []float64
+        WhiteParams []float64
 }
 
 func (s *Stats) update(gs GAME_RESULT) {
@@ -28,5 +30,6 @@ func (s *Stats) update(gs GAME_RESULT) {
 }
 
 func (s Stats) String() string {
-        return fmt.Sprintf("Games palyed: %d\nBlack wins: %d\nWhite wins: %d\nDraws: %d", s.GamesPlayed, s.BlackWins, s.WhiteWins, s.Draws)
+        return fmt.Sprintf("Games palyed: %d\nBlack wins: %d\nWhite wins: %d\nDraws: %d\nBlack params: %+v\nWhite params: %+v ",
+                s.GamesPlayed, s.BlackWins, s.WhiteWins, s.Draws, s.BlackParams, s.WhiteParams)
 }

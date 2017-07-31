@@ -1,18 +1,22 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
-	"github.com/piotrjaromin/machinelearning/checkers"
+	"io/ioutil"
 	"log"
+
+	"github.com/piotrjaromin/machinelearning/checkers"
 )
 
 func main() {
 
-	mode := flag.String("mode", "preview", "determines mode of teach algorithm {teach|preview}")
+	mode := flag.String("mode", "preview", "determines mode of teach algorithm {teach|preview|play}")
 	drawerName := flag.String("drawer", "donothing", "decides how board will be drawn {opengl|asci|donothing}")
 	moveDelay := flag.Int("moveDelay", 400, "in preview mode enabled delay between moves [ms]")
 	maxGamesPlayed := flag.Int("maxGames", 1000, "amount of games that should be played during teaching")
-	learningRate := flag.Float64("learningRate", 0.0001, "learning rate speed")
+	learningRate := flag.Float64("learningRate", 0.00001, "learning rate speed")
+	playersParamsPath := flag.String("playerParamsPath", "./params.json", "path to json file containing player parameters")
 
 	flag.Parse()
 
@@ -27,11 +31,27 @@ func main() {
 		endGameAfter := checkers.CreateEndAfterGamesPlayed(*maxGamesPlayed)
 		stats := checkers.Teach(endGameAfter, drawer, *learningRate)
 		log.Println(stats.String())
+	case "play":
+		endGameAfter := checkers.CreateEndAfterGamesPlayed(*maxGamesPlayed)
+		config := readPlayerParams(*playersParamsPath)
+		stats := checkers.PlayGames(endGameAfter, drawer, config.P1, config.P2)
+		log.Println(stats.String())
 	default:
 		flag.PrintDefaults()
 	}
 }
 
+func readPlayerParams(path string) playerConfig {
+
+	file, e := ioutil.ReadFile(path)
+	if e != nil {
+		panic(e)
+	}
+
+	var playerConfig playerConfig
+	json.Unmarshal(file, &playerConfig)
+	return playerConfig
+}
 
 func getDrawer(name string, delay int) checkers.Draw {
 
@@ -39,10 +59,13 @@ func getDrawer(name string, delay int) checkers.Draw {
 	case "asci":
 		var drawer checkers.AsciDraw
 		return drawer
-	case "opengl":
-		return checkers.CreateOpenGlDraw(300, 300, 10,10, delay)
 	default:
 		var emptyDrawer checkers.DoNothingDraw
 		return emptyDrawer
 	}
+}
+
+type playerConfig struct {
+	P1 []float64 `json:"p1"`
+	P2 []float64 `json:"p2"`
 }
