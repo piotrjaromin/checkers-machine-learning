@@ -6,7 +6,7 @@ import (
 	"io/ioutil"
 	"log"
 
-	"github.com/piotrjaromin/machinelearning/checkers"
+	"github.com/piotrjaromin/checkers-machine-learning/checkers"
 )
 
 func main() {
