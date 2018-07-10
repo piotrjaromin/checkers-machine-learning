@@ -1,3 +1,10 @@
+/*
+Heart of learning algorithm, plays games with two players which are controlled by loss function
+
+TODO move to separate module
+
+*/
+
 package checkers
 
 import (

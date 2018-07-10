@@ -11,11 +11,20 @@ import (
 
 func main() {
 
-	mode := flag.String("mode", "preview", "determines mode of teach algorithm {teach|preview|play}")
-	drawerName := flag.String("drawer", "donothing", "decides how board will be drawn {opengl|asci|donothing}")
+	mode := flag.String("mode", "preview", `determines mode of teach algorithm {teach|preview|play}
+- teach - plays multiple games and teaches model
+- preview - plays one game with randomized model parameters
+- play - plays game on already trained model, requires playerParamsPath argument`)
+
+	drawerName := flag.String("drawer", "donothing", `decides how board will be drawn {opengl|asci|donothing}
+- donothing - do not draw board
+- asci - draws asci board for game
+- opengl - not implements, ui with graphic
+	`)
+
 	moveDelay := flag.Int("moveDelay", 400, "in preview mode enabled delay between moves [ms]")
 	maxGamesPlayed := flag.Int("maxGames", 1000, "amount of games that should be played during teaching")
-	learningRate := flag.Float64("learningRate", 0.00001, "learning rate speed")
+	learningRate := flag.Float64("learningRate", 0.00001, "learning rate speed, tells how fast model parameters should change")
 	playersParamsPath := flag.String("playerParamsPath", "./params.json", "path to json file containing player parameters")
 
 	flag.Parse()
