@@ -18,8 +18,8 @@ func main() {
 
 	drawerName := flag.String("drawer", "donothing", `decides how board will be drawn {opengl|asci|donothing}
 - donothing - do not draw board
-- asci - draws asci board for game
-- opengl - not implements, ui with graphic
+- ascii - draws ascii board for game
+- web - creates web endpoint
 	`)
 
 	moveDelay := flag.Int("moveDelay", 400, "in preview mode enabled delay between moves [ms]")
@@ -30,7 +30,6 @@ func main() {
 	flag.Parse()
 
 	log.Printf("selected mode is %s, drawerName is %s, moveDelay is %d", *mode, *drawerName, *moveDelay)
-
 	drawer := getDrawer(*drawerName, *moveDelay)
 
 	switch *mode {
@@ -48,6 +47,7 @@ func main() {
 	default:
 		flag.PrintDefaults()
 	}
+
 }
 
 func readPlayerParams(path string) playerConfig {
@@ -65,8 +65,11 @@ func readPlayerParams(path string) playerConfig {
 func getDrawer(name string, delay int) checkers.Draw {
 
 	switch name {
-	case "asci":
+	case "ascii":
 		var drawer checkers.AsciDraw
+		return drawer
+	case "web":
+		var drawer = checkers.NewHttpDraw(delay)
 		return drawer
 	default:
 		var emptyDrawer checkers.DoNothingDraw

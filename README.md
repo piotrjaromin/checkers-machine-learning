@@ -38,3 +38,10 @@ or when goconvey is installed with (start web dashboard with test results):
 ```bash
 goconvey
 ```
+
+## For web preview
+
+```bash
+go run main.go -drawer web
+open html-view/index.html
+```

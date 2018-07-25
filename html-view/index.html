@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8"/>
+    <title>Checkers</title>
+    <script type="text/javascript">
+
+        const gameHistory = [];
+        let historyPointer = 0;
+
+        function drawGrid(ctx, cellsCount, maxSize, cellSize) {
+
+            ctx.fillStyle = 'rgb(0, 0, 0)';
+            for (let i  = 1; i < cellsCount; i++) {
+                ctx.fillRect(cellSize*i, 0, 1, maxSize);
+                ctx.fillRect(0, cellSize*i, maxSize, 1);
+            }
+        }
+
+        function getBoardData(url) {
+            return new Promise( (resolve, reject) => {
+                const xhr = new XMLHttpRequest();
+                xhr.open('GET', url, true);
+                xhr.responseType = 'json';
+                xhr.onload = function() {
+                    var status = xhr.status;
+                    if (status !== 200) {
+                        return reject(xhr.response);
+                    }
+
+                    return resolve(xhr.response);
+                };
+                xhr.send();
+            });
+        }
+
+        function drawPawns(ctx, data, cellSize) {
+            console.log(data);
+
+            data.Board.forEach( (row, rowNo) => {
+
+                row.forEach( (cell, collNo) => {
+
+                    if ( cell == null ) {
+                        return;
+                    }
+
+                    console.log(cell);
+
+                    if ( cell.Color === 0) {
+                        ctx.fillStyle = 'rgb(255, 0, 0)';
+                    } else {
+                        ctx.fillStyle = 'rgb(0, 255, 0)';
+                    }
+
+
+                    ctx.fillRect(cellSize*rowNo, cellSize*collNo, cellSize, cellSize);
+                })
+
+            })
+        }
+
+        async function draw(data) {
+            console.log(data);
+
+            const canvas = document.getElementById('board');
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0,0, canvas.width, canvas.height)
+
+            const maxSize = canvas.height;
+            const cellsCount = 10;
+            const cellSize = maxSize / cellsCount;
+
+            drawGrid(ctx, cellsCount, maxSize, cellSize);
+
+            if ( data ) {
+                drawPawns(ctx, data, cellSize);
+            }
+        }
+
+        function prev() {
+            if (historyPointer > 0 ) {
+                draw(gameHistory[historyPointer--])
+            }
+        }
+
+        async function next() {
+
+            const repeat = document.getElementById('repeatCount').value;
+            for (let i = 0; i < repeat; i++ ) {
+                if ( historyPointer >= gameHistory.length ) {
+                    const data = await getBoardData('http://localhost:8080');
+                    gameHistory.push(data);
+                }
+
+                draw(gameHistory[historyPointer++]);
+            }
+        }
+
+    </script>
+    <style type="text/css">
+        canvas { border: 1px solid black; }
+
+        #buttons, #canvas {
+            position: float
+        }
+
+    </style>
+  </head>
+  <body>
+
+    <div id="buttons">
+        <button onclick="prev()">Prev</button>
+        <button onclick="next()">Next</button>
+        <input id="repeatCount" value=25 type="number">
+    </div>
+
+    <div id="canvas">
+        <canvas id="board" width="450" height="450"></canvas>
+    </div>
+  </body>
+</html>

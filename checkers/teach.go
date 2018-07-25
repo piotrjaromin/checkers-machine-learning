@@ -2,7 +2,6 @@
 Heart of learning algorithm, plays games with two players which are controlled by loss function
 
 TODO move to separate module
-
 */
 
 package checkers
@@ -76,13 +75,16 @@ func PlayGames(etf EndTeachingFunc, drawer Draw, p1Params, p2Params []float64) S
 
 func PlayOneGame(b Board, p1 PlayerML, p2 PlayerML, drawer Draw) GAME_RESULT {
 
-	//Teach algorithm
+	// Teach algorithm
 	itr := 0
 	for UNFINISHED == b.GameResult() {
 
+		// First player makes move
 		movePlayer(&b, p1, p2)
+		drawer.Draw(b)
 
-		if b.GameResult() != UNFINISHED {
+		// if game is not win, the second player has chance
+		if b.GameResult() == UNFINISHED {
 			movePlayer(&b, p2, p1)
 		}
 
@@ -90,8 +92,7 @@ func PlayOneGame(b Board, p1 PlayerML, p2 PlayerML, drawer Draw) GAME_RESULT {
 		drawer.Draw(b)
 	}
 
-	//End of Teach algorithm
-
+	// End of game algorithm
 	return b.GameResult()
 }
 
